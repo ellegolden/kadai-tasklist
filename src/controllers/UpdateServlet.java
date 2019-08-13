@@ -14,16 +14,16 @@ import models.Task;
 import utils.DBUtil;
 
 /**
- * Servlet implementation class CreateServlet
+ * Servlet implementation class UpdateServlet
  */
-@WebServlet("/create")
-public class CreateServlet extends HttpServlet {
+@WebServlet("/update")
+public class UpdateServlet extends HttpServlet {
     private static final long serialVersionUID = 1L;
 
     /**
      * @see HttpServlet#HttpServlet()
      */
-    public CreateServlet() {
+    public UpdateServlet() {
         super();
         // TODO Auto-generated constructor stub
     }
@@ -32,33 +32,31 @@ public class CreateServlet extends HttpServlet {
      * @see HttpServlet#doPost(HttpServletRequest request, HttpServletResponse response)
      */
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        // セキュリティ処理(CSRF対策のチェック)
-        // _token に値がセットされていなかったりセッションIDと値が異なったりしたら
-        // データの登録ができない
-
         String _token = (String)request.getParameter("_token");
         if(_token != null && _token.equals(request.getSession().getId())) {
-
-            // EntityManagerの利用を開始してデータをやりとりするための変数emを用意する
             EntityManager em = DBUtil.createEntityManager();
 
-            // Taskクラスの変数mを用意して、各カラムのデータをセットする
-            Task m = new Task();
+            // セッションスコープから指定したタスクのIDを取得して
+            // 該当のIDのタスクの内容1件のみをデータベースから取得
+            Task m = em.find(Task.class, (Integer)(request.getSession().getAttribute("tasks_id")));
 
+            // フォームの内容を各フィールドに上書き
             String content = request.getParameter("content");
             m.setContent(content);
 
             Timestamp currentTime = new Timestamp(System.currentTimeMillis());
-            m.setCreated_at(currentTime);
-            m.setUpdated_at(currentTime);
+            m.setUpdated_at(currentTime);       // 更新日時のみ上書き
 
-            em.getTransaction().begin();    // トランザクション処理の開始
-            em.persist(m);                  // 処理内容をデータベースに保存
-            em.getTransaction().commit();   // データベースの変更を確定
-            em.close();                     // EntityManagerを終了する
+            // データベースを更新
+            em.getTransaction().begin();
+            em.getTransaction().commit();
+            em.close();
 
-            response.sendRedirect(request.getContextPath() + "/index"); // (/indexへリダイレクトする)
+            // セッションスコープ上の不要になったデータを削除
+            request.getSession().removeAttribute("tasks_id");
+
+            // indexページへリダイレクト
+            response.sendRedirect(request.getContextPath() + "/index");
         }
     }
-
 }
